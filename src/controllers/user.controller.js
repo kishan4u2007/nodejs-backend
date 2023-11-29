@@ -16,28 +16,36 @@ const registerUser = asyncHandler(async (req, res) => {
     // check for user creation
     // res
 
-    const {fullName, username, email, password} = req.body
+    const {fullName, username, email, password } = req.body
 
-    if([fullName, username, email, password].some((field) => field?.trim === "" )) {
-        throw new ApiError(400, "All files are complsury")
+    if (
+        [fullName, email, username, password].some((field) => field?.trim() === "")
+    ) {
+        throw new ApiError(400, "All fields are required")
     }
 
-    const existedUser =  User.findOne({
-        $or : [{ username }, { email }]
+
+    const existedUser = await User.findOne({
+        $or: [{ username }, { email }]
     })
 
-    if(existedUser) {
-        throw new ApiError(409, "Username and email is already existed")
+    if (existedUser) {
+        throw new ApiError(409, "User with email or username already exists")
     }
 
+       //console.log(req.files);
+
     //multer has given us access of req.files just like mongoose give us access of req.body
-    console.log("avatar file name", req.files?.avatar[0]?.path)
+    // console.log("avatar file name", req.files?.avatar[0]?.path)
 
     const avatarLocalPath =  req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
 
-    if(!avatarLocalPath) {
-        throw new ApiError(400, "Avatar file is required!!")
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar file is required")
     }
 
     //upload image on cloudinary
@@ -50,22 +58,25 @@ const registerUser = asyncHandler(async (req, res) => {
 
     //create user object - create entry in db
 
-   const user = await User.create({
+    const user = await User.create({
         fullName,
         avatar: avatar.url,
         coverImage: coverImage?.url || "",
-        email,
+        email, 
         password,
-        username : username.toLowerCase()
+        username: username.toLowerCase()
     })
 
     //check user is created or not if yes monogdb provide us unique Id for every object
     // inside select method ("-password") we are using for we will remove password field from user object 
 
-    const createdUser =  User.findById(user._id).select("-password -refreshToken");
 
-    if(!createdUser) {
-        throw new ApiError(500, "Something went wrong!!")
+    const createdUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
+
+   if (!createdUser) {
+        throw new ApiError(500, "Something went wrong while registering the user")
     }
 
     //if everything looks good send respone to server

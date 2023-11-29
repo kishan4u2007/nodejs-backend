@@ -25,7 +25,7 @@ const userScheme = new Schema(
       trim: true,
       index: true,
     },
-    avtar: {
+    avatar: {
       type: String, //cloudinary URL
       required: true,
     },
